@@ -1,6 +1,6 @@
 # personal data never belongs in this repo
 *.csv
-!docs/sample.csv
+!docs/exports/*.csv
 collection.db
 cardscan-data/
 dahlia.toml

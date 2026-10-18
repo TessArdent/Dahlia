@@ -10,22 +10,17 @@
 <body>
 <header class="top">
   <h1>Dahlia <span>collection viewer</span></h1>
-  <p class="privacy">Your CSV stays in this browser. Only card IDs go to Scryfall for images and prices.</p>
+  <p class="privacy">Collections exported from Dahlia. Card images and prices come from Scryfall.</p>
 </header>
 
 <main>
-  <section id="drop" class="drop" tabindex="0">
-    <p><strong>Drop a collection CSV here</strong>, or <label class="link">choose a file<input id="file" type="file" accept=".csv,text/csv" hidden></label>.</p>
-    <p class="hint">Export it from Dahlia's Collection tab (<em>Export CSV…</em>). ManaBox exports work too.</p>
-    <p><button id="sample" type="button">Try a sample</button></p>
-  </section>
-
-  <section id="app" hidden>
+  <section id="app">
     <div id="status" class="status" role="status"></div>
 
     <div class="stats" id="stats"></div>
 
     <div class="controls">
+      <select id="collection" aria-label="Collection"></select>
       <input id="q" type="search" placeholder="Search name or set" aria-label="Search">
       <select id="binder" aria-label="Binder"></select>
       <select id="finish" aria-label="Finish">
@@ -45,6 +40,7 @@
       <select id="currency" aria-label="Currency">
         <option value="eur">EUR €</option>
         <option value="usd">USD $</option>
+        <option value="gbp">GBP £</option>
       </select>
       <div class="seg" role="group" aria-label="View">
         <button id="v-grid" type="button" aria-pressed="true">Grid</button>

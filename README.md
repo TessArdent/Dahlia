@@ -7,14 +7,15 @@ The app itself is not public yet; its place is reserved in [`app/`](app/).
 
 ## Collection viewer
 
-Open the viewer, then drop in a CSV exported from Dahlia's Collection tab (*Export CSV…*).
-It shows your cards as a grid or table, with card images, prices and totals.
+A static page that shows published collections as a grid or table, with card images, prices and totals.
+Live at https://tessardent.github.io/Dahlia/, with its source in [`docs/`](docs/) (plain HTML, CSS and JS, no build step).
 
-- Runs entirely in your browser. Your CSV is never uploaded anywhere.
-- Card images and current prices come from [Scryfall](https://scryfall.com)'s public API. Only card identifiers are sent to Scryfall, never your quantities, binder names or purchase prices.
-- Also reads ManaBox collection and binder exports.
+- It reads only the collections published in [`docs/exports/`](docs/exports/). It has no upload.
+- Card images and prices come from [Scryfall](https://scryfall.com)'s public API (only card IDs are sent). GBP and other currencies are converted from EUR with ECB rates from [frankfurter.app](https://frankfurter.app).
 
-Live at https://tessardent.github.io/Dahlia/ and in [`docs/`](docs/) (plain HTML, CSS and JS, no build step).
+To publish a collection: export it from Dahlia's Collection tab (*Export CSV…*, ManaBox format), put the file in `docs/exports/`, and add `{ "file": "...", "title": "..." }` to `docs/exports/index.json`.
+The CSV includes purchase prices and dates added, and everything in this repo is public.
+
 To try it locally: `python -m http.server -d docs` and open http://localhost:8000.
 
 ## Layout

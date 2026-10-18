@@ -4,10 +4,9 @@ const API = "https://api.scryfall.com/cards/collection";
 const CACHE_KEY = "dahlia-viewer-cards-v1";
 const CACHE_MS = 24 * 3600 * 1000;       // Scryfall updates prices daily
 const RARITY = { common: 0, uncommon: 1, rare: 2, mythic: 3, special: 4, bonus: 5 };
-const SYMBOL = { eur: "EUR", usd: "USD" };
 
 const $ = (id) => document.getElementById(id);
-const state = { rows: [], cards: new Map(), view: "grid", currency: "eur" };
+const state = { rows: [], cards: new Map(), view: "grid", currency: "eur", rates: { EUR: 1 } };
 
 // --- CSV ---------------------------------------------------------------------------------
 function parseCsv(text) {
@@ -128,16 +127,34 @@ async function fetchCards(rows, onProgress) {
 }
 
 // --- Money -------------------------------------------------------------------------------
+// Scryfall prices cards in EUR and USD only. Other currencies convert through ECB rates (EUR = 1).
+async function fetchRates() {
+  try {
+    const res = await fetch("https://api.frankfurter.app/latest?from=EUR");
+    if (res.ok) state.rates = { EUR: 1, ...(await res.json()).rates };
+  } catch { /* only same-currency figures then */ }
+}
+
+function convert(v, from, to) {
+  from = from.toUpperCase(); to = to.toUpperCase();
+  if (from === to) return v;
+  const a = state.rates[from], b = state.rates[to];
+  return a && b ? (v / a) * b : null;
+}
+
 const fmt = (v, cur = state.currency) =>
-  v == null ? "–" : new Intl.NumberFormat(undefined, { style: "currency", currency: SYMBOL[cur] }).format(v);
+  v == null ? "–" : new Intl.NumberFormat(undefined, { style: "currency", currency: cur.toUpperCase() }).format(v);
 
 function unitPrice(item) {
   const c = item.card;
   if (!c) return null;
-  const p = c.prices, cur = state.currency;
   const suffix = item.finish === "foil" ? "_foil" : item.finish === "etched" ? "_etched" : "";
-  const v = parseFloat(p[cur + suffix]);
-  return Number.isFinite(v) ? v : null;
+  const get = (k) => { const v = parseFloat(c.prices[k + suffix]); return Number.isFinite(v) ? v : null; };
+  const cur = state.currency;
+  if (cur === "eur" || cur === "usd") return get(cur);
+  const eur = get("eur"), usd = get("usd");
+  if (eur != null) return convert(eur, "EUR", cur);
+  return usd != null ? convert(usd, "USD", cur) : null;
 }
 
 // --- View --------------------------------------------------------------------------------
@@ -172,9 +189,8 @@ function renderStats(list) {
     copies += i.qty;
     const u = unitPrice(i);
     if (u == null) unpriced += i.qty; else value += u * i.qty;
-    if (i.paid != null && (i.paidCurrency === state.currency || !i.paidCurrency) && u != null) {
-      paid += i.paid * i.qty; paidKnown += u * i.qty;
-    }
+    const p = i.paid == null ? null : convert(i.paid, i.paidCurrency || state.currency, state.currency);
+    if (p != null && u != null) { paid += p * i.qty; paidKnown += u * i.qty; }
   }
   const stats = $("stats"); stats.replaceChildren();
   const add = (big, small, cls) => { const d = el("div", "stat"); d.append(el("b", cls, big), el("small", null, small)); stats.append(d); };
@@ -217,7 +233,7 @@ function renderTable(list) {
     tr.append(name, el("td", null, c ? `${c.setName} (${c.set.toUpperCase()}) #${c.cn}` : i.set.toUpperCase()),
       el("td", null, pretty(i.finish)), el("td", null, pretty(i.condition)), el("td", "n", String(i.qty)),
       el("td", "n", fmt(u)), el("td", "n", u == null ? "–" : fmt(u * i.qty)),
-      el("td", "n", i.paid == null ? "–" : fmt(i.paid, SYMBOL[i.paidCurrency] ? i.paidCurrency : state.currency)),
+      el("td", "n", i.paid == null ? "–" : fmt(i.paid, i.paidCurrency || state.currency)),
       el("td", null, i.binder));
     body.append(tr);
   }
@@ -234,17 +250,20 @@ function render() {
 function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : ""); }
 
 async function load(text) {
-  let parsed;
-  try { parsed = rowsFromCsv(text); } catch (e) { alert(e.message); return; }
+  const parsed = rowsFromCsv(text);
   state.rows = parsed.rows; state.cards.clear();
-  $("drop").hidden = true; $("app").hidden = false;
   const binders = [...new Set(state.rows.map((r) => r.binder))].sort();
   $("binder").replaceChildren(new Option("All binders and lists", ""), ...binders.map((b) => new Option(b, b)));
+  $("binder").hidden = binders.length < 2;
+  const paidCur = state.rows.find((r) => r.paid != null && r.paidCurrency)?.paidCurrency;
+  if (paidCur && [...$("currency").options].some((o) => o.value === paidCur)) {
+    state.currency = paidCur; $("currency").value = paidCur;
+  }
   render();
   const note = parsed.problems.length ? ` Skipped ${parsed.problems.length} rows (${parsed.problems[0]}).` : "";
   try {
     setStatus("Fetching card images and prices from Scryfall…");
-    await fetchCards(state.rows, (done, total) => setStatus(`Fetching from Scryfall… ${done} of ${total}`));
+    await Promise.all([fetchRates(), fetchCards(state.rows, (done, total) => setStatus(`Fetching from Scryfall… ${done} of ${total}`))]);
     const missing = state.rows.filter((r) => !state.cards.has(r.key)).length;
     setStatus((missing ? `${missing} rows were not found on Scryfall.` : "Prices are Scryfall's, updated daily.") + note, missing > 0);
   } catch (e) {
@@ -253,14 +272,28 @@ async function load(text) {
   render();
 }
 
+async function open(file) {
+  setStatus("Loading…");
+  try {
+    const res = await fetch("exports/" + encodeURIComponent(file));
+    if (!res.ok) throw new Error(`${file} answered ${res.status}.`);
+    await load(await res.text());
+  } catch (e) { setStatus(e.message, true); }
+}
+
+async function init() {
+  try {
+    const res = await fetch("exports/index.json");
+    if (!res.ok) throw new Error(`exports/index.json answered ${res.status}.`);
+    const list = await res.json();
+    $("collection").replaceChildren(...list.map((c) => new Option(c.title, c.file)));
+    $("collection").hidden = list.length < 2;
+    if (list.length) await open(list[0].file); else setStatus("No collections have been published yet.");
+  } catch (e) { setStatus(e.message, true); }
+}
+
 // --- Wiring ------------------------------------------------------------------------------
-const readFile = (f) => f.text().then(load);
-$("file").addEventListener("change", (e) => e.target.files[0] && readFile(e.target.files[0]));
-$("sample").addEventListener("click", () => fetch("sample.csv").then((r) => r.text()).then(load));
-const drop = $("drop");
-["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((t) => drop.addEventListener(t, () => drop.classList.remove("over")));
-drop.addEventListener("drop", (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+$("collection").addEventListener("change", (e) => open(e.target.value));
 ["q", "binder", "finish", "sort"].forEach((id) => $(id).addEventListener("input", render));
 $("currency").addEventListener("change", (e) => { state.currency = e.target.value; render(); });
 for (const v of ["grid", "table"]) {
@@ -271,3 +304,5 @@ for (const v of ["grid", "table"]) {
     render();
   });
 }
+
+init();
