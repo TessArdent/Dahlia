@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dahlia Collection Viewer</title>
+<meta name="description" content="View a Dahlia or ManaBox collection export with card images and prices. Runs in your browser.">
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+<header class="top">
+  <h1>Dahlia <span>collection viewer</span></h1>
+  <p class="privacy">Your CSV stays in this browser. Only card IDs go to Scryfall for images and prices.</p>
+</header>
+
+<main>
+  <section id="drop" class="drop" tabindex="0">
+    <p><strong>Drop a collection CSV here</strong>, or <label class="link">choose a file<input id="file" type="file" accept=".csv,text/csv" hidden></label>.</p>
+    <p class="hint">Export it from Dahlia's Collection tab (<em>Export CSV…</em>). ManaBox exports work too.</p>
+    <p><button id="sample" type="button">Try a sample</button></p>
+  </section>
+
+  <section id="app" hidden>
+    <div id="status" class="status" role="status"></div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search name or set" aria-label="Search">
+      <select id="binder" aria-label="Binder"></select>
+      <select id="finish" aria-label="Finish">
+        <option value="">Any finish</option>
+        <option value="nonfoil">Nonfoil</option>
+        <option value="foil">Foil</option>
+        <option value="etched">Etched</option>
+      </select>
+      <select id="sort" aria-label="Sort">
+        <option value="name">Name</option>
+        <option value="price">Price, high to low</option>
+        <option value="total">Total value, high to low</option>
+        <option value="set">Set</option>
+        <option value="rarity">Rarity</option>
+        <option value="added">Recently added</option>
+      </select>
+      <select id="currency" aria-label="Currency">
+        <option value="eur">EUR €</option>
+        <option value="usd">USD $</option>
+      </select>
+      <div class="seg" role="group" aria-label="View">
+        <button id="v-grid" type="button" aria-pressed="true">Grid</button>
+        <button id="v-table" type="button" aria-pressed="false">Table</button>
+      </div>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <div id="tablewrap" class="tablewrap" hidden>
+      <table id="table">
+        <thead><tr>
+          <th>Card</th><th>Set</th><th>Finish</th><th>Cond.</th><th class="n">Qty</th>
+          <th class="n">Price</th><th class="n">Total</th><th class="n">Paid</th><th>Binder</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Card data and images by <a href="https://scryfall.com">Scryfall</a>. Magic: The Gathering is property of Wizards of the Coast; this is unofficial fan software.
+  <a href="https://github.com/TessArdent/Dahlia">Source</a></p>
+</footer>
+<script src="viewer.js"></script>
+</body>
+</html>

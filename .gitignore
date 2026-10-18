@@ -1,0 +1,9 @@
+# personal data never belongs in this repo
+*.csv
+!docs/sample.csv
+collection.db
+cardscan-data/
+dahlia.toml
+cardscan.toml
+.hive/
+__pycache__/
